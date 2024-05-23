@@ -48,7 +48,6 @@ brew install --build-from-source --HEAD libimobiledevice-glue.rb
 
 brew install --build-from-source --HEAD libusbmuxd.rb
 ./util/brewser.pl fixpc libusbmuxd 2.0
-
-brew install --build-from-source --HEAD libimobiledevice.rb
-
-make libimd
+./util/brewser.pl ensurehead libimobiledevice 1.3.1
+./util/brewser.pl fixpc libimobiledevice 1.0
+#make libimd
