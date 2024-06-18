@@ -1,10 +1,11 @@
-MakefileERR := $(shell ./makefile_preflight.pl)
-ifdef ERR
+PreflightERR := $(shell ./makefile_preflight.pl > /dev/null; echo $$?)
+ifneq ($(PreflightERR), 0)
 all: error
 wdafree: error
 error:
 	$(error preflight errors)
 else
+# TODO Bellow code pending review
 all: wdafree wda bin/wda/web
 wdafree: config.json\
  bin/coordinator\
@@ -26,6 +27,8 @@ wdafree: config.json\
 endif
 
 .PHONY:\
+ all\
+ wdafree
  clone\
  stf\
  ios_video_stream\
@@ -51,7 +54,7 @@ endif
  idbin
 
 config.json:
-	cp config.json.example config.json
+	cp -n config.json.example config.json
 
 # --- Special Commands ---
 
@@ -212,7 +215,7 @@ xcodebuildoptions1 := \
 	-allowProvisioningUpdates \
 	-destination generic/platform=iOS
 
-DEVID := $(shell jq .xcode_dev_team_id config.json -j)
+DEVID := $(shell jq .xcode.dev_team_id config.json -j)
 
 xcodebuildoptions2 := \
 	CODE_SIGN_IDENTITY="iPhone Developer" \
@@ -222,11 +225,11 @@ bin/wda/build_info.json: repos/WebDriverAgent repos/WebDriverAgent/WebDriverAgen
 	@if [ -e bin/wda ]; then rm -rf bin/wda; fi;
 	@mkdir -p bin/wda/Debug-iphoneos
 	ln -s ../../repos/wdaproxy/web bin/wda/web
-	$(eval XCODEOPS=$(shell jq '.xcode_build_ops // ""' config.json -j))
+	$(eval XCODEOPS=$(shell jq '.xcode.build_options // ""' config.json -j))
 	cd repos/WebDriverAgent && xcodebuild $(xcodebuildoptions1) $(XCODEOPS) $(xcodebuildoptions2) build-for-testing
 	$(eval PROD_PATH=$(shell ./get-wda-build-path.sh))
 	@if [ "$(PROD_PATH)" != "" ]; then cp -r $(PROD_PATH)/ bin/wda/; fi;
-	@if [ "$(PROD_PATH)" != "" ]; then ./get-version-info.sh --repo wda > bin/wda/build_info.json; fi;
+	@if [ "$(PROD_PATH)" != "" ]; then ./get-version-info.py --repo wda > bin/wda/build_info.json; fi;
 	@if [ "$(PROD_PATH)" == "" ]; then echo FAIL TO GET PRODUCTION PATH - you should rerun make; exit 1; fi;
 
 # --- WDAProxy ---
@@ -271,8 +274,9 @@ clone: repos/WebDriverAgent repos/osx_ios_device_trigger repos/stf-ios-provider 
 repos/stf-ios-provider/package.json: repos/stf-ios-provider
 
 repos/stf-ios-provider:
-	$(eval REPO=$(shell if test -f config.json; then jq '.repo_stf // "https://github.com/nanoscopic/stf-ios-provider.git"' -j config.json; else echo "https://github.com/nanoscopic/stf-ios-provider.git"; fi))
-	git clone $(REPO) repos/stf-ios-provider --branch master
+	$(eval REPO=$(shell if test -f config.json; then jq '.repos.stf.url // "https://github.com/nanoscopic/stf-ios-provider.git"' -j config.json; else echo "https://github.com/nanoscopic/stf-ios-provider.git"; fi))
+	$(eval REPO_BR=$(shell if test -f config.json; then jq '.repos.stf.branch // "master"' -j config.json; else echo "master"; fi))
+	git clone $(REPO) repos/stf-ios-provider --branch $(REPO_BR)
 
 repos/ios_video_stream:
 	git clone https://github.com/nanoscopic/ios_video_stream.git repos/ios_video_stream
@@ -283,8 +287,8 @@ repos/ios_video_pull:
 repos/WebDriverAgent/WebDriverAgent.xcodeproj: repos/WebDriverAgent
 
 repos/WebDriverAgent:
-	$(eval REPO=$(shell if test -f config.json; then jq '.repo_wda // "https://github.com/appium/WebDriverAgent.git"' -j config.json; else echo "https://github.com/appium/WebDriverAgent.git"; fi))
-	$(eval REPO_BR=$(shell if test -f config.json; then jq '.repo_wda_branch // "master"' -j config.json; else echo "master"; fi))
+	$(eval REPO=$(shell if test -f config.json; then jq '.repos.wda.url // "https://github.com/appium/WebDriverAgent.git"' -j config.json; else echo "https://github.com/appium/WebDriverAgent.git"; fi))
+	$(eval REPO_BR=$(shell if test -f config.json; then jq '.repos.wda.branch // "master"' -j config.json; else echo "master"; fi))
 	git clone $(REPO) repos/WebDriverAgent --branch $(REPO_BR)
 
 repos/osx_ios_device_trigger:
@@ -335,7 +339,7 @@ repos/libimobiledevice/Makefile: | repos/libimobiledevice
 stf: repos/stf-ios-provider/package-lock.json
 
 repos/stf-ios-provider/package-lock.json: repos/stf-ios-provider/package.json
-	cd repos/stf-ios-provider && PATH="/usr/local/opt/node@14/bin:$(PATH)" npm install
+	cd repos/stf-ios-provider && npm install
 	touch repos/stf-ios-provider/package-lock.json
 
 # --- OFFLINE STF ---
@@ -400,7 +404,7 @@ offlinefiles := \
 	build_info.json
 
 offline/build_info.json: bin/coordinator bin/ios_video_stream bin/ivf_pull
-	@./get-version-info.sh > offline/build_info.json
+	@./get-version-info.py > offline/build_info.json
 
 dist.tgz: offline/build_info.json ios_video_stream wda device_trigger halias bin/coordinator offline/repos/stf-ios-provider config.json view_log wdaproxyalias | offline/repos/stf-ios-provider
 	@if [ ! -d offline/logs ]; then mkdir -p offline/logs; fi;

@@ -1,9 +1,9 @@
 ## STF IOS Support
 
-[Actual instruction for deploy service on 2023/08/09](docs/DEPLOYMENT.md)
+[Actual instructions to deploy service on 2023/08/09](docs/DEPLOYMENT.md)
 
 ### Prerequisites
-1. A machine running MacOS ( to build and run the "provider" )
+1. A machine running macOS ( to build and run the "provider" )
 1. A machine running Linux with Docker container support ( to run the STF server )
 
 ### Build machine setup
@@ -55,7 +55,7 @@
 1. Copy the first {} block from `config.json.example` into `config.json`. Do not include any comment lines starting with //
 1. Update config.json
 
-	1. Update `xcode_dev_team_id` to be the OU of your developer account. If you add your account into Xcode first, you can then run
+	1. Update `xcode.dev_team_id` to be the OU of your developer account. If you add your account into Xcode first, you can then run
 	   `make ou` to display what the OU is. You can also find it by opening the keychain, selecting the Apple Development certificate
 	   for your account, and then looking at what the `Organization Unit` is.
 	1. Update `root_path` to be where provider code should be installed, such as `/Users/user/stf`

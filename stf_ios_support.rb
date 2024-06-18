@@ -1,3 +1,7 @@
+# Currently this formula is not directly used by Homebrew and therefore it is not valid
+# Only the depends_on methods are being used by the ./util/brewser.pl
+# TODO: Make this formula valid and available via tap
+
 class StfIosSupport < Formula
   desc "OpenSTF IOS Device Provider"
   homepage ""
@@ -8,6 +12,9 @@ class StfIosSupport < Formula
   def install
     system "touch #{prefix}/intentionally_empty_install"
   end
+
+  
+# TODO Bellow code pending review
 
   # depends_on "cmake" => :build
   depends_on "jq"
@@ -27,7 +34,7 @@ class StfIosSupport < Formula
   depends_on "ossp-uuid"
   depends_on "socat"
   depends_on :xcode => "10.3"
-  depends_on "node@14"
+  depends_on "node@18"
   depends_on "libsodium"
   depends_on "czmq"
   depends_on "jpeg-turbo"

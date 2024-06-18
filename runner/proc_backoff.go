@@ -1,28 +1,28 @@
 package main
 
 import (
-	"time"
 	"strconv"
+	"time"
 )
 
 type Backoff struct {
-    fails          int
-    start          time.Time
-    elapsedSeconds float64
+	fails          int
+	start          time.Time
+	elapsedSeconds float64
 }
 
-func ( self *Backoff ) markStart() {
-    self.start = time.Now()
+func (s *Backoff) markStart() {
+	s.start = time.Now()
 }
 
-func ( self *Backoff ) timeUp() ( float64 ) {
-	elapsed := time.Since( self.start )
-    seconds := elapsed.Seconds()
-    return seconds
+func (s *Backoff) timeUp() float64 {
+	elapsed := time.Since(s.start)
+	seconds := elapsed.Seconds()
+	return seconds
 }
 
-func ( self *Backoff ) timeUpText() ( string ) {
-	seconds := uint16( self.timeUp() )
+func (s *Backoff) timeUpText() string {
+	seconds := uint16(s.timeUp())
 	minutes := uint16(0)
 	hours := uint16(0)
 	days := uint16(0)
@@ -50,31 +50,31 @@ func ( self *Backoff ) timeUpText() ( string ) {
 	}
 	if days > 0 {
 		text = strconv.Itoa(int(days)) + " days " + text
-    }
-    return text
+	}
+	return text
 }
 
-func ( self *Backoff ) markEnd() ( float64 ) {
-    elapsed := time.Since( self.start )
-    seconds := elapsed.Seconds()
-    self.elapsedSeconds = seconds
-    return seconds
+func (s *Backoff) markEnd() float64 {
+	elapsed := time.Since(s.start)
+	seconds := elapsed.Seconds()
+	s.elapsedSeconds = seconds
+	return seconds
 }
 
-func ( self *Backoff ) wait() {
-    sleeps := []int{ 0, 0, 2, 5, 10 }
-    numSleeps := len( sleeps )
-    if self.elapsedSeconds < 20 {
-        self.fails = self.fails + 1
-        index := self.fails
-        if index >= numSleeps {
-            index = numSleeps - 1
-        }
-        sleepLen := sleeps[ index ]
-        if sleepLen != 0 {
-            time.Sleep( time.Second * time.Duration( sleepLen ) )
-        }
-    } else {
-        self.fails = 0
-    }
+func (s *Backoff) wait() {
+	sleeps := []int{0, 0, 2, 5, 10}
+	numSleeps := len(sleeps)
+	if s.elapsedSeconds < 20 {
+		s.fails = s.fails + 1
+		index := s.fails
+		if index >= numSleeps {
+			index = numSleeps - 1
+		}
+		sleepLen := sleeps[index]
+		if sleepLen != 0 {
+			time.Sleep(time.Second * time.Duration(sleepLen))
+		}
+	} else {
+		s.fails = 0
+	}
 }

@@ -1,147 +1,148 @@
 package main
 
 import (
-    "bytes"
-    "fmt"
-    "net/http"
-    "text/template"
-    "strconv"
-    "strings"
-    "time"
-    uj "github.com/nanoscopic/ujsonin/mod"
+	"bytes"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"text/template"
+	"time"
+
+	uj "github.com/nanoscopic/ujsonin/mod"
 )
 
 type Info struct {
-    proc *GenericProc
-    passmap map[string] string
+	proc    *GenericProc
+	passmap map[string]string
 }
 
-func coro_http_server( port int, proc *GenericProc, passmap map[string] string, secure bool, crt string, key string, runnerVersion VersionInfo, config *uj.JNode ) {
-    var listen_addr = fmt.Sprintf( "0.0.0.0:%d", port )
-    startServer( listen_addr, proc, passmap, secure, crt, key, runnerVersion, config )
+func coro_http_server(port int, proc *GenericProc, passmap map[string]string, secure bool, crt string, key string, runnerVersion VersionInfo, config *uj.JNode) {
+	var listen_addr = fmt.Sprintf("0.0.0.0:%d", port)
+	startServer(listen_addr, proc, passmap, secure, crt, key, runnerVersion, config)
 }
 
-func BasicAuth(handler http.HandlerFunc, passmap map[string] string ) http.HandlerFunc {
+func BasicAuth(handler http.HandlerFunc, passmap map[string]string) http.HandlerFunc {
 	realm := "Enter auth for coordinator runner admin"
-	
-    return func(w http.ResponseWriter, r *http.Request) {
 
-        user, pass, ok := r.BasicAuth()
+	return func(w http.ResponseWriter, r *http.Request) {
 
-        if !ok || !check_pass( user, pass, passmap ) {
-            w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
-            w.WriteHeader(401)
-            w.Write([]byte("Unauthorised.\n"))
-            return
-        }
+		user, pass, ok := r.BasicAuth()
 
-        handler(w, r)
-    }
+		if !ok || !check_pass(user, pass, passmap) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
+			w.WriteHeader(401)
+			w.Write([]byte("Unauthorised.\n"))
+			return
+		}
+
+		handler(w, r)
+	}
 }
 
-func startServer( listen_addr string, proc *GenericProc, passmap map[string] string, secure bool, crt string, key string, runnerVersion VersionInfo, config *uj.JNode ) {
+func startServer(listen_addr string, proc *GenericProc, passmap map[string]string, secure bool, crt string, key string, runnerVersion VersionInfo, config *uj.JNode) {
 	info := Info{
-		proc: proc,
+		proc:    proc,
 		passmap: passmap,
 	}
-	
-    fmt.Printf("HTTP server started")
 
-    rootClosure := BasicAuth( func( w http.ResponseWriter, r *http.Request ) {
-        handleRoot( w, r, info, runnerVersion )
-    }, passmap );
-    startClosure := BasicAuth( func( w http.ResponseWriter, r *http.Request ) {
-        handleStart( w, r, info )
-    }, passmap );
-    stopClosure := BasicAuth( func( w http.ResponseWriter, r *http.Request ) {
-        handleStop( w, r, info )
-    }, passmap );
-    restartClosure := BasicAuth( func( w http.ResponseWriter, r *http.Request ) {
-        handleRestart( w, r, info )
-    }, passmap );
-    updateClosure := BasicAuth( func( w http.ResponseWriter, r *http.Request ) {
-        handleUpdate( w, r, info, config )
-    }, passmap );
-    
-    http.HandleFunc( "/", rootClosure )
-    http.HandleFunc( "/start", startClosure )
-    http.HandleFunc( "/stop", stopClosure )
-    http.HandleFunc( "/restart", restartClosure )
-    http.HandleFunc( "/update", updateClosure )
-    
-    var err error
-    if secure {
-    	err = http.ListenAndServeTLS( listen_addr, crt, key, nil )
-    } else {
-    	err = http.ListenAndServe( listen_addr, nil )
-    }
-    fmt.Printf("HTTP ListenAndServe Error %s\n", err)
+	fmt.Printf("HTTP server started")
+
+	rootClosure := BasicAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleRoot(w, info, runnerVersion)
+	}, passmap)
+	startClosure := BasicAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleStart(w, info)
+	}, passmap)
+	stopClosure := BasicAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleStop(w, info)
+	}, passmap)
+	restartClosure := BasicAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleRestart(w, info)
+	}, passmap)
+	updateClosure := BasicAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleUpdate(w, info, config)
+	}, passmap)
+
+	http.HandleFunc("/", rootClosure)
+	http.HandleFunc("/start", startClosure)
+	http.HandleFunc("/stop", stopClosure)
+	http.HandleFunc("/restart", restartClosure)
+	http.HandleFunc("/update", updateClosure)
+
+	var err error
+	if secure {
+		err = http.ListenAndServeTLS(listen_addr, crt, key, nil)
+	} else {
+		err = http.ListenAndServe(listen_addr, nil)
+	}
+	fmt.Printf("HTTP ListenAndServe Error %s\n", err)
 }
 
-func handleRoot( w http.ResponseWriter, r *http.Request, info Info, rv VersionInfo ) {
-	var allVersions map[string] VersionInfo = make( map[string] VersionInfo )
+func handleRoot(w http.ResponseWriter, info Info, rv VersionInfo) {
+	var allVersions map[string]VersionInfo = make(map[string]VersionInfo)
 	allVersions["Runner"] = rv
-    loadVersionInfo( allVersions )
-    
+	loadVersionInfo(allVersions)
+
 	versionText := ""
-	for itemName,item := range allVersions {
-        var str bytes.Buffer
-        
-        remote := item.GitRemote
-        remote = strings.Replace( remote, "git@github.com:", "", 1 )
-        remote = strings.Replace( remote, ".git", "", 1 )
-        rawRemote := remote
-        remote = "<a href='https://github.com/" + remote + "'>" + remote + "</a>"
-        
-        commit := item.GitCommit
-        commit = "<a href='https://github.com/" + rawRemote + "/commit/" + commit + "'>" + commit + "</a>"
-        
-        time := unixToTimeObject( item.GitDate )
-        timeStr := time.Format( "Mon, Jan 2 2006 3:04 PM MST" )
-        
-        versionTpl.Execute( &str, map[string] string {
-            "GitCommit": commit,
-            "GitDate": timeStr,
-            "GitRemote": remote,
-            "EasyVersion": item.EasyVersion,
-            "Name": itemName,
-        } )
-        versionText += str.String() + "<br>"
-    } 
-        
-    rootTpl.Execute( w, map[string] string{
-		"pid": strconv.Itoa( info.proc.pid ),
-		"timeUp": info.proc.backoff.timeUpText(),
+	for itemName, item := range allVersions {
+		var str bytes.Buffer
+
+		remote := item.GitRemote
+		remote = strings.Replace(remote, "git@github.com:", "", 1)
+		remote = strings.Replace(remote, ".git", "", 1)
+		rawRemote := remote
+		remote = "<a href='https://github.com/" + remote + "'>" + remote + "</a>"
+
+		commit := item.GitCommit
+		commit = "<a href='https://github.com/" + rawRemote + "/commit/" + commit + "'>" + commit + "</a>"
+
+		time := unixToTimeObject(item.GitDate)
+		timeStr := time.Format("Mon, Jan 2 2006 3:04 PM MST")
+
+		versionTpl.Execute(&str, map[string]string{
+			"GitCommit":   commit,
+			"GitDate":     timeStr,
+			"GitRemote":   remote,
+			"EasyVersion": item.EasyVersion,
+			"Name":        itemName,
+		})
+		versionText += str.String() + "<br>"
+	}
+
+	rootTpl.Execute(w, map[string]string{
+		"pid":      strconv.Itoa(info.proc.pid),
+		"timeUp":   info.proc.backoff.timeUpText(),
 		"Versions": versionText,
-    } )
+	})
 }
 
-func unixToTimeObject( unix string ) ( time.Time ) {
-    i, _ := strconv.ParseInt( unix, 10, 64)
-    return time.Unix( i, 0 )
+func unixToTimeObject(unix string) time.Time {
+	i, _ := strconv.ParseInt(unix, 10, 64)
+	return time.Unix(i, 0)
 }
 
-func handleStart( w http.ResponseWriter, r *http.Request, info Info ) {
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    info.proc.Start()
-    fmt.Fprintf( w, "ok" )
+func handleStart(w http.ResponseWriter, info Info) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	info.proc.Start()
+	fmt.Fprintf(w, "ok")
 }
 
-func handleStop( w http.ResponseWriter, r *http.Request, info Info ) {
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    info.proc.Stop()
-    fmt.Fprintf( w, "ok" )
+func handleStop(w http.ResponseWriter, info Info) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	info.proc.Stop()
+	fmt.Fprintf(w, "ok")
 }
 
-func handleRestart( w http.ResponseWriter, r *http.Request, info Info ) {
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    info.proc.Restart()
-    fmt.Fprintf( w, "ok" )
+func handleRestart(w http.ResponseWriter, info Info) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	info.proc.Restart()
+	fmt.Fprintf(w, "ok")
 }
 
-func handleUpdate( w http.ResponseWriter, r *http.Request, info Info, config *uj.JNode ) {
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    runUpdate( info, w, config )
+func handleUpdate(w http.ResponseWriter, info Info, config *uj.JNode) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	runUpdate(info, w, config)
 }
 
 var versionTpl = template.Must(template.New("version").Parse(`

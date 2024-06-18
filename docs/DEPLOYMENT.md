@@ -1,28 +1,25 @@
 # Deployment
 
 ## Tested working configuration
-- Built using: XCode 14.3.1 on MacOS Ventura 13.5
+- Built using: Xcode 15.4 on macOS Sonoma 14.5 with Apple silicon
 
 ## 1. Prepare PC (build machine)
-1. Install XCode
+1. Clone this repository down to your build machine
+1. Install Xcode
 1. Add your developer Apple ID to XCode
 
-    1. XCode -> XCode menu -> Preferences -> Accounts Tab
+    1. XCode -> XCode menu -> Preferences -> Accounts tab
     1. Click `+` under `Apple IDs` list
     1. Choose `Apple ID`
     1. Login to your account
 1. Download a "Apple Development certificate" for your user
 
 	1. Continue from previous step, right after logging into your Developer account in Xcode
-    1. Select `Manage Certificates`
-    1. Click `+` in the lower left corner
-    1. Select `Apple Development`
-1. Install [Homebrew](https://docs.brew.sh/Installation)
-1. Install Python 2.7 from MacPorts
-    1. [Install MacPorts](https://www.macports.org/install.php)
-    1. In terminal: `ports install python27`
+  1. Select `Manage Certificates...`
+  1. Click `+` in the lower left corner
+  1. Select `Apple Development`
 
-## 2. Prepare server STF
+## 2. Prepare STF server
 1. Add in NGINX config (in STF server deployment) block configuration for new provider:
 - Client IP should be changed from `[^/]` to some more specific range such as: `(?<client_ip>192.168.255.[0-9]+)` to restrict it to a reasonable IP range
 - If left alone this example config will let clients arbitrarily tunnel to any IP on ports `8000-8009`
@@ -208,7 +205,7 @@ This error initial by new dependenses: https://github.com/libimobiledevice/libim
 
     1. Copy the first {} block from `config.json.example` into `config.json`. Do not include any comment lines starting with //
     1. Edit config.json
-	    1. Update `xcode_dev_team_id` to be the OU of your developer account. If you add your account into Xcode first, you can then run
+	    1. Update `xcode.dev_team_id` to be the OU of your developer account. If you add your account into Xcode first, you can then run
 	   `make ou` to display what the OU is. You can also find it by opening the keychain, selecting the Apple Development certificate
 	   for your account, and then looking at what the `Organization Unit` is.
 	    1. Update `root_path` to be where provider code should be installed, such as `/Users/user/stf`
@@ -217,7 +214,9 @@ This error initial by new dependenses: https://github.com/libimobiledevice/libim
     1. Sample:
     ```json
     {
-      "xcode_dev_team_id": "XXXXXXXXX",
+      "xcode": {
+        "dev_team_id": "XXXXXXXXX",
+      },
       "stf": {
         "ip": "192.168.1.10",
         "hostname": "stf.example.com"
@@ -231,7 +230,6 @@ This error initial by new dependenses: https://github.com/libimobiledevice/libim
       },
       "install": {
         "root_path": "/Users/user/stf",
-        "config_path": "/Users/user/stf/config.json",
         "set_working_dir": false
       },
       "bin_paths": {

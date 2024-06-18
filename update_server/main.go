@@ -1,11 +1,11 @@
 package main
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 )
 
 func main() {
-	fs := http.FileServer( http.Dir( "./updates" ) )
-	fmt.Println( http.ListenAndServe( ":8022", fs ) )
+	fs := http.FileServer(http.Dir("./updates"))
+	fmt.Println(http.ListenAndServe(":8022", fs))
 }

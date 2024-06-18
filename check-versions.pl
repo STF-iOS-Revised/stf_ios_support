@@ -1,4 +1,7 @@
 #!/usr/bin/perl -w
+
+# TODO Bellow code pending review
+
 use strict;
 use Data::Dumper;
 
@@ -13,7 +16,7 @@ if( -e "temp/check-ok-$mainT" && ( !$arg || $arg ne 'force' ) ) {
     exit;
 }
 
-my $versions = `./get-version-info.sh --unix --wdasource`;
+my $versions = `./get-version-info.py --unix --wdasource`;
 open( my $vfile, ">temp/current_versions.json" );
 print $vfile $versions;
 close( $vfile );
