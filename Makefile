@@ -28,7 +28,7 @@ endif
 
 .PHONY:\
  all\
- wdafree
+ wdafree\
  clone\
  stf\
  ios_video_stream\
